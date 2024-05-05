@@ -122,9 +122,6 @@ def regexOverstock(s):
             title_match = re.search(title_pattern, item, re.DOTALL)
 
             if title_match:
-                #print("==================================================================")
-                #print(title_match.group(1))
-
                 list_price_match = re.search(list_price_pattern, item, re.DOTALL)
                 price_match = re.search(price_pattern, item, re.DOTALL)
                 saving_match = re.search(saving_pattern, item, re.DOTALL)
@@ -133,35 +130,30 @@ def regexOverstock(s):
 
                 if list_price_match:
                     list_price = list_price_match.group(1)
-                    #print("LIST PRICE:", list_price_match.group(1))
                 else:
                     list_price = None
                     print("Missing list price")
 
                 if price_match:
                     price = price_match.group(1)
-                    #print("PRICE:", price_match.group(1))
                 else:
                     price = None
                     print("Missing price")
 
                 if saving_match:
                     saving = saving_match.group(1)
-                    #print("SAVING:", saving_match.group(1))
                 else:
                     saving = None
                     print("Missing saving")
 
                 if saving_percentage_match:
                     saving_percentage = saving_percentage_match.group(1)
-                    #print("SAVING PERCENTAGE:", saving_percentage_match.group(1))
                 else:
                     saving_percentage = None
                     print("Missing saving percentage")
 
                 if content_match:
                     content = content_match.group(1)
-                    #print("CONTENT:", content_match.group(1))
                 else:
                     content = None
                     print("Missing content")
@@ -179,17 +171,59 @@ def regexOverstock(s):
 
 
 def regexEnaa(s):
+    title_pattern = r'<h1 itemprop="name" class="text-break">(.*?)</h1>'
+    price_pattern = r'<div class="single-product-price">(.*?)<div'
+    rating_pattern = r'<span itemprop="ratingValue">(.*?)</span>'
+    review_count_pattern = r'<span itemprop="reviewCount">(.*?)</span>'
+    brand_pattern = r'<div class="product-brand">\s*Znamka / dobavitelj: <a.*?>(.*?)</a>\s*</div>'
+    description_pattern = r'<div class="single-product-description">.*?<p>(.*?)</p>\s*<br><a href="#opis">Celoten opis'
 
+    title_match = re.search(title_pattern, s, re.DOTALL)
+    price_match = re.search(price_pattern, s, re.DOTALL)
+    rating_match = re.search(rating_pattern, s, re.DOTALL)
+    review_count_match = re.search(review_count_pattern, s, re.DOTALL)
+    brand_match = re.search(brand_pattern, s, re.DOTALL)
+    description_match = re.search(description_pattern, s, re.DOTALL)
+
+    json_enaa = {
+        "title": "",
+        "price": "",
+        "rating": "",
+        "reviewCount": "",
+        "brand": "",
+        "description": ""
+    }
+
+    if title_match:
+        json_enaa["title"] = title_match.group(1).strip()
+
+    if price_match:
+        json_enaa["price"] = price_match.group(1).strip()
+
+    if rating_match:
+        json_enaa["rating"] = rating_match.group(1).strip()
+
+    if review_count_match:
+        json_enaa["reviewCount"] = review_count_match.group(1).strip()
+
+    if brand_match:
+        json_enaa["brand"] = brand_match.group(1).strip()
+
+    if description_match:
+        clean_desc = re.sub(r'<.*?>', '', description_match.group(1).strip())
+        json_enaa["description"] = clean_desc
+
+    return json.dumps(json_enaa)
 
 def runRegEx():
     print('RegEx Extraction started')
 
     for pagePath in renderedPages:
-        print("__________________________________________________"+pagePath+"_______________________________________________________________")
+        print('\n')
+        print("__________________________________________________________________________________________"+pagePath+"__________________________________________________________________________________________")
+        print('\n')
         with codecs.open(ROOT_DIR + pagePath, "r", "utf-8") as f:
             s = f.read()
-
-            print(pagePath[18:27])
 
             if pagePath[18:27] == "rtvslo.si":
                 print(regexRTV(s))
