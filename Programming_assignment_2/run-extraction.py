@@ -211,7 +211,7 @@ def regexEnaa(s):
         json_enaa["brand"] = brand_match.group(1).strip()
 
     if description_match:
-        clean_desc = re.sub(r'<.*?>', '', description_match.group(1).strip())
+        clean_desc = re.sub(r'<.*?>', '', description_match.group(1))
         json_enaa["description"] = clean_desc
 
     return json.dumps(json_enaa)
@@ -317,7 +317,44 @@ def xPathOverstock(s):
 
 
 def xPathEnaa(s):
-    print(s[0:2])
+    title_pattern = "//div[@class='section-title']/h1[@itemprop='name']/text()"
+    price_pattern = "//div[@class='single-product-price']/text()"
+    rating_pattern = "//span[@itemprop='ratingValue']/text()"
+    review_count_pattern = "//span[@itemprop='reviewCount']/text()"
+    brand_pattern = "//div[@class='product-brand']/a/text()"
+    description_pattern = "//div[@class='single-product-description']//text()[not(parent::a)]"
+
+    json_enaa = {
+        "title": "",
+        "price": "",
+        "rating": "",
+        "reviewCount": "",
+        "brand": "",
+        "description": ""
+    }
+
+    tree = html.fromstring(s)
+
+    title = tree.xpath(title_pattern)
+    price = tree.xpath(price_pattern)
+    rating = tree.xpath(rating_pattern)
+    review_count = tree.xpath(review_count_pattern)
+    brand = tree.xpath(brand_pattern)
+    description = tree.xpath(description_pattern)
+
+    merged_description = ""
+    for item in description:
+        if item.strip() != '':
+            merged_description += " " + item.strip()
+
+    json_enaa["title"] = title[0].strip()
+    json_enaa["price"] = price[0].strip()
+    json_enaa["rating"] = rating[0].strip()
+    json_enaa["reviewCount"] = review_count[0].strip()
+    json_enaa["brand"] = brand[0].strip()
+    json_enaa["description"] = merged_description.strip()
+
+    return json.dumps(json_enaa)
 
 
 def runXPath():
