@@ -4,6 +4,7 @@
 
 - Install Selenium: `pip install selenium` 
 - Install xmlx: `pip install lxml` 
+- Install bs4: `pip istall bs4`
 
 V 26. vrstici je potrebno nastaviti lokacijo za firefox, ki se uporablja za selenium, ampak ta del je potreben le ko smo 
 renderirali spletne strani, ki so shranjene v svojih posameznih mapah. Take strani so označene z dvema podčrtajema spredaj npr: `input-extraction/overstock.com/__jewlery01.html`

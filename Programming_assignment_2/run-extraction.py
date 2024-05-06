@@ -4,6 +4,7 @@ import time
 import re
 import json
 from lxml import html
+from bs4 import BeautifulSoup
 
 import codecs
 from selenium import webdriver
@@ -377,9 +378,79 @@ def runXPath():
                 print(xPathEnaa(s))
 
 
+def roadRunnerRTV(s):
+    result = {}
+    soup = BeautifulSoup(s, 'html.parser')
+
+    author_element = soup.select_one('div.author-name')
+    time_element = soup.select_one('div.publish-meta')
+    title_element = soup.select_one('h1')
+    subtitle_element = soup.select_one('div.subtitle')
+    lead_element = soup.select_one('p.lead')
+    content_elements = soup.select('article.article p')
+
+    if author_element:
+        result['author'] = author_element.get_text(strip=True)
+    if time_element:
+        result['time'] = time_element.get_text(strip=True)
+    if title_element:
+        result['title'] = title_element.get_text(strip=True)
+    if subtitle_element:
+        result['subtitle'] = subtitle_element.get_text(strip=True)
+    if lead_element:
+        result['lead'] = lead_element.get_text(strip=True)
+    if content_elements:
+        result['content'] = '\n'.join([content.get_text(strip=True) for content in content_elements])
+
+    return result
+
+
+def roadRunnerOverstock(s):
+    result = {"products": []}
+    soup = BeautifulSoup(s, 'html.parser')
+
+    titles = soup.select('tbody tr[bgcolor] td[valign] a b')
+    list_prices = soup.select('tbody tr[bgcolor] td table tr td table tr td s')
+    prices = soup.select('tbody tr[bgcolor] td table tr td table tr td span.bigred b')
+    savings = soup.select('tbody tr[bgcolor] td table tr td table tr td span.littleorange')
+    contents = soup.select('tbody tr[bgcolor] td table tr td span.normal')
+
+    for i in range(0, len(titles), 2):  # 2 je ker nevem kk odstranit da ignorira "Click here to purchase."
+        saving_matches = re.findall(r'\$[\d,.]+|\d+%', savings[i//2].get_text(strip=True))
+
+        extraction_result = {
+            "title": titles[i].get_text(strip=True),
+            "listPrice": list_prices[i//2].get_text(strip=True),
+            "price": prices[i//2].get_text(strip=True),
+            "saving": saving_matches[0],
+            "saving_percentage": saving_matches[1] if len(saving_matches) > 1 else None,
+            "content": contents[i//2].get_text(strip=True) if i//2 < len(contents) else None
+        }
+        result["products"].append(extraction_result)
+    
+    return result
+
+
 def runRoadRunner():
     print('RoadRunner started')
 
+    for page_path in renderedPages:
+        print('\n')
+        print("__________________________________________________________________________________________"+ page_path + "__________________________________________________________________________________________")
+        print('\n')
+        with codecs.open(ROOT_DIR + page_path, "r", "utf-8") as f:
+            s = f.read()
+
+            if page_path[18:27] == "rtvslo.si":
+                print(roadRunnerRTV(s))
+
+            if page_path[18:27] == "overstock":
+                print(roadRunnerOverstock(s))
+
+            """
+            if page_path[18:27] == "_enaa.com":
+                print(roadRunnerEnaa(s))
+            """
 
 def getRenderHthmls():
     service = FirefoxService(executable_path=WEB_DRIVER_LOCATION)
