@@ -404,6 +404,106 @@ def roadRunnerRTV(s):
 
     return result
 
+def roadRunnerEnaa(s):
+    result = {}
+    soup = BeautifulSoup(s, 'html.parser')
+
+    title_element = soup.select_one("h1[itemprop='name']")
+    result['title'] = title_element.get_text(strip=True) if title_element else "Title not found"
+
+    price_element = soup.select_one(".single-product-price")
+    result['price'] = price_element.get_text(strip=True).split()[0] if price_element else "Price not found"
+
+    rating_element = soup.select_one("span[itemprop='ratingValue']")
+    result['rating'] = rating_element.get_text(strip=True) if rating_element else "Rating not found"
+
+    review_count_element = soup.select_one("span[itemprop='reviewCount']")
+    result['reviewCount'] = review_count_element.get_text(strip=True) if review_count_element else "Review count not found"
+
+    brand_element = soup.select_one(".product-brand a")
+    result['brand'] = brand_element.get_text(strip=True) if brand_element else "Brand not found"
+
+    short_desc_element = soup.select(".single-product-description p")
+    result['short_description'] = " ".join([desc.get_text(strip=True) for desc in short_desc_element]) if short_desc_element else "Short description not found"
+
+    availability_elements = soup.select(".single-product-side-info-items .single-product-side-info-item")
+    shipping_date = None
+    pickup_date = None
+    for element in availability_elements:
+        text = element.get_text(strip=True)
+        date_text = element.select_one(".green.text-nowrap")
+        if 'poslali' in text and date_text: 
+            shipping_date = date_text.get_text(strip=True)
+        elif 'prevzem' in text and date_text:
+            pickup_date = date_text.get_text(strip=True)
+    result['shipping_date'] = shipping_date if shipping_date else "Shipping date not found"
+    result['pickup_date'] = pickup_date if pickup_date else "Pickup date not found"
+
+    product_code_element = soup.select_one(".single-product-side-bottom > p:contains('Šifra izdelka')")
+    if product_code_element:
+        product_code = product_code_element.get_text(strip=True).replace('Šifra izdelka:', '').strip()
+    else:
+        product_code = "Product code not found"
+    result['product_code'] = product_code
+
+    loyalty_points_element = soup.select_one(".single-product-side-bottom > p:contains('S točkami zvestobe do popustov')")
+    if loyalty_points_element:
+        loyalty_points = loyalty_points_element.get_text(strip=True).replace('S točkami zvestobe do popustov:', '').strip()
+    else:
+        loyalty_points = "Loyalty points info not found"
+    result['loyalty_points'] = loyalty_points
+
+    basic_features_section = soup.select_one('.single-product-bottom-col .single-product-bottom-content-properties')
+    basic_features = {}
+    if basic_features_section:
+        features_list = basic_features_section.find_all('li')
+        for feature in features_list:
+            key = feature.find('b').get_text(strip=True).rstrip(':')
+            value = feature.get_text(strip=True).replace(key, '').strip()
+            basic_features[key] = value
+    
+    result['basic_features'] = basic_features
+
+    comparison_section = soup.select_one('div.compare-items')
+    comparison_results = []
+    
+    if comparison_section:
+        product_items = comparison_section.select('div.grid-item')
+        for item in product_items[1:]: 
+            product_info = {
+                'title': item.select_one('.grid-item-title').get_text(strip=True) if item.select_one('.grid-item-title') else "No title",
+                'price': item.select_one('.grid-item-price').get_text(strip=True) if item.select_one('.grid-item-price') else "No price",
+                'rating': item.select_one('.product-rating-number').get_text(strip=True) if item.select_one('.product-rating-number') else "No rating",
+                'details': {}
+            }
+            
+            properties = item.select('.compare-item-properties > div')
+            for prop in properties:
+                if prop.get_text(strip=True):
+                    detail_text = prop.get_text(strip=True)
+                    split_details = detail_text.split(':', 1)
+                    if len(split_details) > 1:
+                        product_info['details'][split_details[0].strip()] = split_details[1].strip()
+                    else:
+                        product_info['details'][split_details[0].strip()] = None
+            
+            comparison_results.append(product_info)
+    
+    result['product_comparison'] = comparison_results
+
+    full_desc_section = soup.select_one(".single-product-bottom-section")
+    full_description = ''
+    if full_desc_section:
+        paragraphs = full_desc_section.select("p[property='v:description'], .single-product-bottom-content p")
+        for p in paragraphs:
+            full_description += p.get_text(' ', strip=True) + ' '
+        result['full_description'] = full_description.strip()
+    else:
+        result['full_description'] = "Full description not found"
+
+    return json.dumps(result, ensure_ascii=False, indent=4)
+
+
 
 def roadRunnerOverstock(s):
     result = {"products": []}
@@ -446,6 +546,9 @@ def runRoadRunner():
 
             if page_path[18:27] == "overstock":
                 print(roadRunnerOverstock(s))
+
+            if page_path[18:27] == "_enaa.com":
+                print(roadRunnerEnaa(s))
 
             """
             if page_path[18:27] == "_enaa.com":
