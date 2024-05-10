@@ -406,30 +406,44 @@ def similar(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
 
-def generate_wrapper(segment):
+def generate_wrapper(segment, parent_tag=None):
     wrapper = ""
     patterns = {
         'title': r'<title>(.*?)</title>',
-        'heading': r'<h\d>(.*?)</h\d>',
-        'paragraph': r'<p>(.*?)</p>',
-        'unordered_list': r'<ul>(.*?)</ul>',
-        'ordered_list': r'<ol>(.*?)</ol>',
-        'table': r'<table>(.*?)</table>',
-        'table_row': r'<tr>(.*?)</tr>',
-        'table_data': r'<td>(.*?)</td>',
-        'link': r'<a\s+(?:[^>]*?\s+)?href="([^"]*)"',
-        'image': r'<img\s+(?:[^>]*?\s+)?src="([^"]*)"'
+        'link': r'<link.*?>(.*?)</link>',
+        'input': r'<input.*?>(.*?)</input>',
+        'table': r'<table.*?>(.*?)</table>',
+        'tbody': r'<tbody.*?>(.*?)</tbody>',
+        'tr': r'<tr.*?>(.*?)</tr>',
+        'td': r'<td.*?>(.*?)</td>',
+        'a': r'<a.*?>(.*?)</a>',
+        'img': r'<img.*?>(.*?)',
+        'map': r'<map.*?>(.*?)</map>',
+        'area': r'<area.*?>(.*?)</area>',
+        'form': r'<form.*?>(.*?)</form>'
     }
 
     for element, pattern in patterns.items():
         matches = re.findall(pattern, segment, re.DOTALL)
         if matches:
-            wrapper += f"{element}: {pattern}\n"
-    
+            if parent_tag:
+                wrapper += f"<{parent_tag}>"
+            wrapper += f"<{element}>"
+            for match in matches:
+                # Use BeautifulSoup to extract inner content
+                soup = BeautifulSoup(match, 'html.parser')
+                inner_content = ''.join(str(child) for child in soup.contents)
+                wrapper += f" {inner_content.strip()}"
+            wrapper += f"</{element}>"
+            if parent_tag:
+                wrapper += f"</{parent_tag}>"
+            wrapper += "\n"
+
     return wrapper.strip()
 
 
-def roadRunner(page1, page2, text_threshold=0.8):
+
+def roadRunner(page1, page2, text_threshold=0.5):
     clean_page1 = preprocess_html(page1)
     clean_page2 = preprocess_html(page2)
 
@@ -476,163 +490,11 @@ def roadRunner(page1, page2, text_threshold=0.8):
     unique_common_segments = list(set(common_segments))
 
     if unique_common_segments:
-        print("Wrapper:")
-        combined_wrapper = ""
-        included_elements = set()
         for segment in unique_common_segments:
             wrapper = generate_wrapper(segment)
-            if wrapper.strip() not in included_elements: 
-                combined_wrapper += wrapper + "\n"
-                included_elements.add(wrapper.strip())
-        print(combined_wrapper.strip())
+            if wrapper != "":
+                print(wrapper.strip())
     return unique_common_segments
-
-
-"""
-def roadRunnerEnaa(s):
-    result = {}
-    soup = BeautifulSoup(s, 'html.parser')
-
-    title_element = soup.select_one("h1[itemprop='name']")
-    result['title'] = title_element.get_text(
-        strip=True) if title_element else "Title not found"
-
-    price_element = soup.select_one(".single-product-price")
-    result['price'] = price_element.get_text(strip=True).split()[
-        0] if price_element else "Price not found"
-
-    rating_element = soup.select_one("span[itemprop='ratingValue']")
-    result['rating'] = rating_element.get_text(
-        strip=True) if rating_element else "Rating not found"
-
-    review_count_element = soup.select_one("span[itemprop='reviewCount']")
-    result['reviewCount'] = review_count_element.get_text(
-        strip=True) if review_count_element else "Review count not found"
-
-    brand_element = soup.select_one(".product-brand a")
-    result['brand'] = brand_element.get_text(
-        strip=True) if brand_element else "Brand not found"
-
-    short_desc_element = soup.select(".single-product-description p")
-    result['short_description'] = " ".join([desc.get_text(
-        strip=True) for desc in short_desc_element]) if short_desc_element else "Short description not found"
-
-    availability_elements = soup.select(
-        ".single-product-side-info-items .single-product-side-info-item")
-    shipping_date = None
-    pickup_date = None
-    for element in availability_elements:
-        text = element.get_text(strip=True)
-        date_text = element.select_one(".green.text-nowrap")
-        if 'poslali' in text and date_text:
-            shipping_date = date_text.get_text(strip=True)
-        elif 'prevzem' in text and date_text:
-            pickup_date = date_text.get_text(strip=True)
-    result['shipping_date'] = shipping_date if shipping_date else "Shipping date not found"
-    result['pickup_date'] = pickup_date if pickup_date else "Pickup date not found"
-
-    product_code_element = soup.select_one(
-        ".single-product-side-bottom > p:contains('Šifra izdelka')")
-    if product_code_element:
-        product_code = product_code_element.get_text(
-            strip=True).replace('Šifra izdelka:', '').strip()
-    else:
-        product_code = "Product code not found"
-    result['product_code'] = product_code
-
-    loyalty_points_element = soup.select_one(
-        ".single-product-side-bottom > p:contains('S točkami zvestobe do popustov')")
-    if loyalty_points_element:
-        loyalty_points = loyalty_points_element.get_text(strip=True).replace(
-            'S točkami zvestobe do popustov:', '').strip()
-    else:
-        loyalty_points = "Loyalty points info not found"
-    result['loyalty_points'] = loyalty_points
-
-    basic_features_section = soup.select_one(
-        '.single-product-bottom-col .single-product-bottom-content-properties')
-    basic_features = {}
-    if basic_features_section:
-        features_list = basic_features_section.find_all('li')
-        for feature in features_list:
-            key = feature.find('b').get_text(strip=True).rstrip(':')
-            value = feature.get_text(strip=True).replace(key, '').strip()
-            basic_features[key] = value
-
-    result['basic_features'] = basic_features
-
-    comparison_section = soup.select_one('div.compare-items')
-    comparison_results = []
-
-    if comparison_section:
-        product_items = comparison_section.select('div.grid-item')
-        for item in product_items[1:]:
-            product_info = {
-                'title': item.select_one('.grid-item-title').get_text(strip=True) if item.select_one('.grid-item-title') else "No title",
-                'price': item.select_one('.grid-item-price').get_text(strip=True) if item.select_one('.grid-item-price') else "No price",
-                'rating': item.select_one('.product-rating-number').get_text(strip=True) if item.select_one('.product-rating-number') else "No rating",
-                'details': {}
-            }
-
-            properties = item.select('.compare-item-properties > div')
-            for prop in properties:
-                if prop.get_text(strip=True):
-                    detail_text = prop.get_text(strip=True)
-                    split_details = detail_text.split(':', 1)
-                    if len(split_details) > 1:
-                        product_info['details'][split_details[0].strip(
-                        )] = split_details[1].strip()
-                    else:
-                        product_info['details'][split_details[0].strip()
-                                                ] = None
-
-            comparison_results.append(product_info)
-
-    result['product_comparison'] = comparison_results
-
-    full_desc_section = soup.select_one(".single-product-bottom-section")
-    full_description = ''
-    if full_desc_section:
-        paragraphs = full_desc_section.select(
-            "p[property='v:description'], .single-product-bottom-content p")
-        for p in paragraphs:
-            full_description += p.get_text(' ', strip=True) + ' '
-        result['full_description'] = full_description.strip()
-    else:
-        result['full_description'] = "Full description not found"
-
-    return json.dumps(result, ensure_ascii=False, indent=4)
-
-
-def roadRunnerOverstock(s):
-    result = {"products": []}
-    soup = BeautifulSoup(s, 'html.parser')
-
-    titles = soup.select('tbody tr[bgcolor] td[valign] a b')
-    list_prices = soup.select('tbody tr[bgcolor] td table tr td table tr td s')
-    prices = soup.select(
-        'tbody tr[bgcolor] td table tr td table tr td span.bigred b')
-    savings = soup.select(
-        'tbody tr[bgcolor] td table tr td table tr td span.littleorange')
-    contents = soup.select('tbody tr[bgcolor] td table tr td span.normal')
-
-    # 2 je ker nevem kk odstranit da ignorira "Click here to purchase."
-    for i in range(0, len(titles), 2):
-        saving_matches = re.findall(
-            r'\$[\d,.]+|\d+%', savings[i//2].get_text(strip=True))
-
-        extraction_result = {
-            "title": titles[i].get_text(strip=True),
-            "listPrice": list_prices[i//2].get_text(strip=True),
-            "price": prices[i//2].get_text(strip=True),
-            "saving": saving_matches[0],
-            "saving_percentage": saving_matches[1] if len(saving_matches) > 1 else None,
-            "content": contents[i//2].get_text(strip=True) if i//2 < len(contents) else None
-        }
-        result["products"].append(extraction_result)
-
-    return result
-"""
 
 def runRoadRunner():
     print('RoadRunner started')
@@ -644,7 +506,6 @@ def runRoadRunner():
             s2 = f.read()
         print('\n')
         print("__________________________________________________________________________________________"+renderedPages[i][18:27]+"__________________________________________________________________________________________")
-        print('\n')
 
         roadRunner(s1, s2)
 
